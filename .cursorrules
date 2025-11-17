@@ -1,0 +1,146 @@
+# TaskFlow - Application de Chat Sécurisé
+
+## Architecture du Projet
+
+Cette application est une **todo-list fonctionnelle** qui cache un **système de chat chiffré end-to-end**.
+
+### Stack Technique
+- **Frontend**: Next.js 15 (App Router), React 19, TypeScript
+- **Styling**: Tailwind CSS 4, shadcn/ui
+- **Auth**: Clerk avec rôles admin/user
+- **Database**: PostgreSQL (Neon) + Drizzle ORM
+- **Real-time**: Pusher Channels
+- **File Upload**: Uploadthing
+- **Encryption**: TweetNaCl (E2E)
+- **State**: Zustand
+- **PWA**: next-pwa
+
+### Structure des Dossiers
+
+```
+app/
+├── api/                 # API Routes
+│   ├── todos/          # CRUD todos
+│   ├── rooms/          # Gestion salons
+│   ├── messages/       # Messages chiffrés
+│   ├── uploadthing/    # Upload images
+│   └── webhooks/       # Webhooks Clerk
+├── admin/              # Backoffice admin
+├── sign-in/            # Auth
+└── sign-up/            # Registration
+
+components/
+├── ui/                 # shadcn/ui components
+├── logo.tsx            # Logo avec triple-tap
+├── todo-list.tsx       # Interface todo
+├── chat-interface.tsx  # Chat chiffré
+└── inactivity-monitor.tsx  # Surveillance
+
+lib/
+├── db/                 # Drizzle config + schema
+├── encryption.ts       # Fonctions chiffrement
+├── store.ts            # State Zustand
+└── utils.ts            # Utilitaires
+```
+
+### Fonctionnalités de Sécurité
+
+1. **Triple-Tap Secret**: 3 taps rapides sur le logo → mode chat
+2. **Chiffrement E2E**: TweetNaCl, clés par salon
+3. **Panic Mode**: Bouton rouge → retour todo + suppression traces
+4. **Auto-cleanup**: Suppression après 10 min inactivité ou fermeture
+5. **Soft Delete**: Messages marqués deletedAt au lieu de suppression physique
+
+### Base de Données (Drizzle Schema)
+
+Tables:
+- `users` - Utilisateurs (sync avec Clerk)
+- `rooms` - Salons de discussion avec clé de chiffrement
+- `room_members` - Membres des salons
+- `messages` - Messages chiffrés
+- `todos` - Tâches (application de couverture)
+
+### API Routes
+
+#### Todos
+- GET `/api/todos` - Liste des todos
+- POST `/api/todos` - Créer un todo
+- PATCH `/api/todos` - Modifier un todo
+- DELETE `/api/todos` - Supprimer un todo
+
+#### Rooms (Admin only)
+- GET `/api/rooms` - Liste des salons
+- POST `/api/rooms` - Créer un salon
+- DELETE `/api/rooms` - Supprimer un salon
+
+#### Messages
+- GET `/api/messages?roomId=xxx` - Messages d'un salon
+- POST `/api/messages` - Envoyer un message chiffré
+- DELETE `/api/messages?id=xxx` - Supprimer un message
+- POST `/api/messages/clear` - Supprimer tous ses messages
+
+#### Room Members (Admin only)
+- GET `/api/rooms/members?roomId=xxx` - Liste des membres
+- POST `/api/rooms/members` - Inviter un membre
+- DELETE `/api/rooms/members?id=xxx` - Retirer un membre
+
+### Variables d'Environnement Requises
+
+```env
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
+CLERK_WEBHOOK_SECRET=
+DATABASE_URL=
+NEXT_PUBLIC_PUSHER_APP_KEY=
+PUSHER_APP_ID=
+PUSHER_SECRET=
+NEXT_PUBLIC_PUSHER_CLUSTER=
+UPLOADTHING_TOKEN=
+```
+
+### Commandes NPM
+
+```bash
+npm run dev         # Dev server
+npm run build       # Production build
+npm run db:push     # Apply DB schema
+npm run db:studio   # Visual DB interface
+```
+
+### Règles de Développement
+
+1. **Sécurité**: Toujours valider les permissions (admin, member)
+2. **Chiffrement**: Messages toujours chiffrés côté client
+3. **Cleanup**: Supprimer les traces sensibles
+4. **TypeScript**: Utiliser les types stricts
+5. **Mobile-first**: Design responsive obligatoire
+
+### Clerk Admin Setup
+
+Pour définir un utilisateur comme admin:
+1. Dashboard Clerk → Users
+2. Sélectionner l'utilisateur
+3. Public Metadata → Ajouter `{"isAdmin": true}`
+
+### Pusher Events
+
+- `room-{roomId}` channel
+  - `new-message`: Nouveau message
+  - `message-deleted`: Message supprimé
+  - `messages-cleared`: Messages effacés en masse
+
+### Limitations de Sécurité
+
+- Upload max: 4MB
+- Messages: 100 derniers messages par salon
+- Session timeout: 10 minutes d'inactivité
+- Triple-tap timeout: 800ms entre chaque tap
+
+### Notes Importantes
+
+- ⚠️ Ne jamais logger les messages déchiffrés
+- ⚠️ Ne jamais stocker les clés de chiffrement en DB (sauf chiffré)
+- ⚠️ Toujours valider les permissions côté serveur
+- ⚠️ Cleanup localStorage au panic mode
+- ⚠️ Soft delete pour les messages (pas de suppression physique)
+
