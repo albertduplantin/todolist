@@ -52,6 +52,7 @@ export function ChatInterface() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pusherRef = useRef<Pusher | null>(null);
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const warningTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [showInactivityWarning, setShowInactivityWarning] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -85,27 +86,34 @@ export function ChatInterface() {
     if (!currentRoomId) return;
 
     const resetInactivityTimer = () => {
-      // Clear existing timer
+      // Clear existing timers
       if (inactivityTimerRef.current) {
         clearTimeout(inactivityTimerRef.current);
       }
+      if (warningTimerRef.current) {
+        clearTimeout(warningTimerRef.current);
+      }
+
+      // Hide warning if it was showing
+      setShowInactivityWarning(false);
 
       // Show warning after 25 seconds
-      const warningTimer = setTimeout(() => {
+      warningTimerRef.current = setTimeout(() => {
+        console.log('[Inactivity] Showing warning - 5 seconds left');
         setShowInactivityWarning(true);
       }, 25000);
 
       // Auto-disconnect after 30 seconds
       inactivityTimerRef.current = setTimeout(() => {
-        console.log('Auto-disconnect due to inactivity');
+        console.log('[Inactivity] Auto-disconnect triggered');
         setCurrentRoomId(null);
         setShowInactivityWarning(false);
         // Clear local room keys for security
         if (typeof window !== 'undefined') {
-          const keys = Object.keys(localStorage);
+          const keys = Object.keys(sessionStorage);
           keys.forEach(key => {
             if (key.startsWith('room_key_')) {
-              localStorage.removeItem(key);
+              sessionStorage.removeItem(key);
             }
           });
         }
@@ -114,11 +122,12 @@ export function ChatInterface() {
 
     // Reset timer on any activity
     const handleActivity = () => {
-      setShowInactivityWarning(false);
+      console.log('[Inactivity] Activity detected - resetting timer');
       resetInactivityTimer();
     };
 
     // Initialize timer
+    console.log('[Inactivity] Timer initialized for room', currentRoomId);
     resetInactivityTimer();
 
     // Listen to various events
@@ -129,8 +138,12 @@ export function ChatInterface() {
     window.addEventListener('touchstart', handleActivity);
 
     return () => {
+      console.log('[Inactivity] Cleaning up timers');
       if (inactivityTimerRef.current) {
         clearTimeout(inactivityTimerRef.current);
+      }
+      if (warningTimerRef.current) {
+        clearTimeout(warningTimerRef.current);
       }
       window.removeEventListener('mousemove', handleActivity);
       window.removeEventListener('keydown', handleActivity);
