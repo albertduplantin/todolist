@@ -45,15 +45,27 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Get messages
+    // Get messages - only fetch non-deleted messages
     const roomMessages = await db
       .select()
       .from(messages)
-      .where(and(eq(messages.roomId, roomId), isNull(messages.deletedAt)))
+      .where(
+        and(
+          eq(messages.roomId, roomId),
+          isNull(messages.deletedAt)
+        )
+      )
       .orderBy(desc(messages.createdAt))
       .limit(100);
 
-    return NextResponse.json(roomMessages.reverse());
+    // Double-check filtering: ensure deletedAt is null or undefined
+    const filteredMessages = roomMessages.filter(
+      msg => msg.deletedAt === null || msg.deletedAt === undefined
+    );
+
+    console.log(`[API] Room ${roomId}: Fetched ${roomMessages.length} messages, filtered to ${filteredMessages.length}`);
+
+    return NextResponse.json(filteredMessages.reverse());
   } catch (error) {
     console.error('Error fetching messages:', error);
     return NextResponse.json(
@@ -158,11 +170,14 @@ export async function DELETE(req: Request) {
       .returning();
 
     if (deletedMessage.length === 0) {
+      console.log(`[API] Failed to delete message ${messageId} - not found or unauthorized`);
       return NextResponse.json(
         { error: 'Message not found or not authorized' },
         { status: 404 }
       );
     }
+
+    console.log(`[API] Message ${messageId} soft-deleted successfully, deletedAt: ${deletedMessage[0].deletedAt}`);
 
     // Trigger Pusher event
     await pusher.trigger(
@@ -173,7 +188,9 @@ export async function DELETE(req: Request) {
       }
     );
 
-    return NextResponse.json({ success: true });
+    console.log(`[API] Pusher event triggered for room ${deletedMessage[0].roomId}`);
+
+    return NextResponse.json({ success: true, deletedAt: deletedMessage[0].deletedAt });
   } catch (error) {
     console.error('Error deleting message:', error);
     return NextResponse.json(
