@@ -105,18 +105,10 @@ export function ChatInterface() {
 
       // Auto-disconnect after 30 seconds
       inactivityTimerRef.current = setTimeout(() => {
-        console.log('[Inactivity] Auto-disconnect triggered');
-        setCurrentRoomId(null);
+        console.log('[Inactivity] Auto-disconnect triggered - returning to todo-list');
         setShowInactivityWarning(false);
-        // Clear local room keys for security
-        if (typeof window !== 'undefined') {
-          const keys = Object.keys(sessionStorage);
-          keys.forEach(key => {
-            if (key.startsWith('room_key_')) {
-              sessionStorage.removeItem(key);
-            }
-          });
-        }
+        // Return to todo-list (exit chat mode completely)
+        triggerPanicMode();
       }, 30000);
     };
 
