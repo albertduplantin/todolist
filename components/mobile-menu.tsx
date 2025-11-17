@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Menu, X, Home, Shield, Bell, Moon, Sun, Download, LogOut } from 'lucide-react';
 import { Button } from './ui/button';
 import { useThemeStore } from '@/lib/theme-store';
@@ -10,9 +10,14 @@ import { NotificationPermission } from './notification-permission';
 
 export function MobileMenu() {
   const [isOpen, setIsOpen] = useState(false);
-  const { isDarkMode, toggleDarkMode } = useThemeStore();
+  const { isDarkMode, toggleDarkMode, initializeTheme } = useThemeStore();
   const { user } = useUser();
   const { signOut } = useClerk();
+
+  // Initialize theme on mount
+  useEffect(() => {
+    initializeTheme();
+  }, [initializeTheme]);
 
   const closeMenu = () => setIsOpen(false);
 

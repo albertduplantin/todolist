@@ -64,23 +64,21 @@ export function PWAInstallPrompt() {
     }
   };
 
-  // Don't show if already installed
-  if (isStandalone) {
-    return null;
-  }
-
   return (
     <>
-      {/* Install Button - Always visible on mobile */}
+      {/* Install Button - Always visible on mobile, icon only when installed */}
       {isMobile && (
         <Button
-          onClick={handleInstallClick}
-          variant="outline"
-          size="sm"
-          className="gap-2 border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-950"
+          onClick={isStandalone ? undefined : handleInstallClick}
+          variant="ghost"
+          size="icon"
+          className={isStandalone 
+            ? "text-green-600 dark:text-green-400 cursor-default" 
+            : "text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"}
+          title={isStandalone ? "Application installée" : "Installer l'application"}
+          disabled={isStandalone}
         >
-          <Download className="h-4 w-4" />
-          Installer
+          <Download className={`h-4 w-4 ${isStandalone ? 'opacity-50' : ''}`} />
         </Button>
       )}
 
