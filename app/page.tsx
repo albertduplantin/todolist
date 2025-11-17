@@ -7,7 +7,7 @@ import { TodoList } from '@/components/todo-list';
 import { ChatInterface } from '@/components/chat-interface';
 import { UserButton, useUser } from '@clerk/nextjs';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { PWAInstallButton } from '@/components/pwa-install-button';
+import { PWAInstallPrompt } from '@/components/pwa-install-prompt';
 import { NotificationPermission } from '@/components/notification-permission';
 
 export default function Home() {
@@ -43,7 +43,7 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <PWAInstallButton />
+            <PWAInstallPrompt />
             <NotificationPermission />
             <ThemeToggle />
             {user?.publicMetadata?.isAdmin === true && (
