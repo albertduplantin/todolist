@@ -6,15 +6,12 @@ import { Button } from './ui/button';
 import { useEffect } from 'react';
 
 export function ThemeToggle() {
-  const { isDarkMode, toggleDarkMode } = useThemeStore();
+  const { isDarkMode, toggleDarkMode, initializeTheme } = useThemeStore();
 
+  // Initialize theme on mount
   useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [isDarkMode]);
+    initializeTheme();
+  }, [initializeTheme]);
 
   return (
     <Button

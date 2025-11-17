@@ -30,6 +30,32 @@ export default function RootLayout({
         <head>
           <link rel="manifest" href="/manifest.json" />
           <meta name="theme-color" content="#3B82F6" />
+          {/* Initialize theme before React renders to avoid flash */}
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+                (function() {
+                  try {
+                    const stored = localStorage.getItem('theme-storage');
+                    let isDark = false;
+                    
+                    if (stored) {
+                      const parsed = JSON.parse(stored);
+                      isDark = parsed.state?.isDarkMode || false;
+                    } else {
+                      isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    }
+                    
+                    if (isDark) {
+                      document.documentElement.classList.add('dark');
+                    }
+                  } catch (e) {
+                    console.error('Theme initialization error:', e);
+                  }
+                })();
+              `,
+            }}
+          />
           <script
             dangerouslySetInnerHTML={{
               __html: `
