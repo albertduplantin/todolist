@@ -14,6 +14,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    console.log(`[API /api/rooms] Fetching rooms for user: ${userId}`);
+
     // Get rooms where user is a member
     const userRooms = await db
       .select({
@@ -33,6 +35,8 @@ export async function GET() {
           eq(rooms.isActive, true)
         )
       );
+
+    console.log(`[API /api/rooms] User ${userId} has access to ${userRooms.length} rooms:`, userRooms.map(r => r.name));
 
     return NextResponse.json(userRooms);
   } catch (error) {
