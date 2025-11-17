@@ -130,7 +130,6 @@ export function Logo({ className = '' }: LogoProps) {
         />
       </svg>
     </div>
-    </div>
   );
 }
 
