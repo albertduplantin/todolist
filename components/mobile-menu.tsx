@@ -10,7 +10,7 @@ import { NotificationPermission } from './notification-permission';
 
 export function MobileMenu() {
   const [isOpen, setIsOpen] = useState(false);
-  const { theme, toggleTheme } = useThemeStore();
+  const { isDarkMode, toggleDarkMode } = useThemeStore();
   const { user } = useUser();
   const { signOut } = useClerk();
 
@@ -106,16 +106,16 @@ export function MobileMenu() {
               {/* Dark Mode Toggle */}
               <button
                 onClick={() => {
-                  toggleTheme();
+                  toggleDarkMode();
                 }}
                 className="flex items-center justify-between w-full px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+                  {!isDarkMode ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
                   <span className="font-medium">Mode sombre</span>
                 </div>
-                <div className={`w-12 h-6 rounded-full transition-colors ${theme === 'dark' ? 'bg-blue-600' : 'bg-gray-300'}`}>
-                  <div className={`w-5 h-5 rounded-full bg-white mt-0.5 transition-transform ${theme === 'dark' ? 'ml-6' : 'ml-0.5'}`} />
+                <div className={`w-12 h-6 rounded-full transition-colors ${isDarkMode ? 'bg-blue-600' : 'bg-gray-300'}`}>
+                  <div className={`w-5 h-5 rounded-full bg-white mt-0.5 transition-transform ${isDarkMode ? 'ml-6' : 'ml-0.5'}`} />
                 </div>
               </button>
 
