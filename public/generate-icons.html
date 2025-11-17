@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Generate PWA Icons</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    button {
+      background: #3B82F6;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 10px 5px;
+      font-size: 16px;
+    }
+    button:hover {
+      background: #2563EB;
+    }
+    .preview {
+      margin: 20px 0;
+      padding: 20px;
+      background: #f0f0f0;
+      border-radius: 10px;
+    }
+    img {
+      border: 1px solid #ddd;
+      margin: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Générateur d'icônes PWA pour TaskFlow</h1>
+  <p>Cliquez sur les boutons ci-dessous pour télécharger les icônes aux bonnes dimensions :</p>
+  
+  <button onclick="generateIcon(192)">Télécharger 192x192</button>
+  <button onclick="generateIcon(512)">Télécharger 512x512</button>
+  
+  <div class="preview" id="preview">
+    <h3>Aperçu de l'icône :</h3>
+  </div>
+
+  <script>
+    const svgContent = `
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="512" height="512" rx="115" fill="#3B82F6"/>
+  
+  <!-- Clipboard paper -->
+  <rect x="120" y="140" width="272" height="320" rx="12" fill="white"/>
+  
+  <!-- Clipboard clip -->
+  <path d="M180 140 C180 110 200 90 256 90 C312 90 332 110 332 140" 
+        stroke="white" 
+        stroke-width="20" 
+        fill="none" 
+        stroke-linecap="round"/>
+  
+  <!-- Checkbox 1 (checked) -->
+  <rect x="160" y="200" width="40" height="40" rx="8" fill="#3B82F6"/>
+  <path d="M170 220 L185 235 L195 210" 
+        stroke="white" 
+        stroke-width="6" 
+        fill="none" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"/>
+  <line x1="220" y1="220" x2="340" y2="220" stroke="#9CA3AF" stroke-width="8" stroke-linecap="round"/>
+  
+  <!-- Checkbox 2 (checked) -->
+  <rect x="160" y="270" width="40" height="40" rx="8" fill="#3B82F6"/>
+  <path d="M170 290 L185 305 L195 280" 
+        stroke="white" 
+        stroke-width="6" 
+        fill="none" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"/>
+  <line x1="220" y1="290" x2="320" y2="290" stroke="#9CA3AF" stroke-width="8" stroke-linecap="round"/>
+  
+  <!-- Checkbox 3 (unchecked) -->
+  <rect x="160" y="340" width="40" height="40" rx="8" fill="white" stroke="#D1D5DB" stroke-width="3"/>
+  <line x1="220" y1="360" x2="340" y2="360" stroke="#D1D5DB" stroke-width="8" stroke-linecap="round"/>
+  
+  <!-- Checkbox 4 (unchecked) -->
+  <rect x="160" y="410" width="40" height="40" rx="8" fill="white" stroke="#D1D5DB" stroke-width="3"/>
+  <line x1="220" y1="430" x2="300" y2="430" stroke="#D1D5DB" stroke-width="8" stroke-linecap="round"/>
+</svg>`;
+
+    function generateIcon(size) {
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      
+      const img = new Image();
+      const blob = new Blob([svgContent], {type: 'image/svg+xml'});
+      const url = URL.createObjectURL(blob);
+      
+      img.onload = function() {
+        ctx.drawImage(img, 0, 0, size, size);
+        
+        canvas.toBlob(function(blob) {
+          const link = document.createElement('a');
+          link.download = `icon-${size}x${size}.png`;
+          link.href = URL.createObjectURL(blob);
+          link.click();
+        });
+        
+        URL.revokeObjectURL(url);
+      };
+      
+      img.src = url;
+    }
+
+    // Show preview
+    window.onload = function() {
+      const preview = document.getElementById('preview');
+      const img = new Image();
+      const blob = new Blob([svgContent], {type: 'image/svg+xml'});
+      const url = URL.createObjectURL(blob);
+      img.src = url;
+      img.width = 192;
+      img.height = 192;
+      preview.appendChild(img);
+    };
+  </script>
+</body>
+</html>
+

@@ -9,6 +9,7 @@ import { UserButton, useUser } from '@clerk/nextjs';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { PWAInstallPrompt } from '@/components/pwa-install-prompt';
 import { NotificationPermission } from '@/components/notification-permission';
+import { MobileMenu } from '@/components/mobile-menu';
 
 export default function Home() {
   const { isChatMode } = useChatStore();
@@ -43,18 +44,24 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <PWAInstallPrompt />
-            <NotificationPermission />
-            <ThemeToggle />
-            {user?.publicMetadata?.isAdmin === true && (
-              <a
-                href="/admin"
-                className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 font-medium transition-colors"
-              >
-                Admin
-              </a>
-            )}
-            <UserButton afterSignOutUrl="/sign-in" />
+            {/* Desktop menu - hidden on mobile */}
+            <div className="hidden md:flex items-center gap-2">
+              <PWAInstallPrompt />
+              <NotificationPermission />
+              <ThemeToggle />
+              {user?.publicMetadata?.isAdmin === true && (
+                <a
+                  href="/admin"
+                  className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 font-medium transition-colors"
+                >
+                  Admin
+                </a>
+              )}
+              <UserButton afterSignOutUrl="/sign-in" />
+            </div>
+            
+            {/* Mobile menu burger - visible only on mobile */}
+            <MobileMenu />
           </div>
         </div>
       </header>
