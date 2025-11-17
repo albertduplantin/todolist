@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Désinstallation Service Worker</title>
+</head>
+<body>
+  <h1>Désinstallation du Service Worker...</h1>
+  <p id="status">En cours...</p>
+  
+  <script>
+    async function unregisterServiceWorkers() {
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const registration of registrations) {
+          await registration.unregister();
+          console.log('Service Worker désinstallé:', registration);
+        }
+        
+        // Clear all caches
+        const cacheNames = await caches.keys();
+        for (const cacheName of cacheNames) {
+          await caches.delete(cacheName);
+          console.log('Cache supprimé:', cacheName);
+        }
+        
+        document.getElementById('status').innerHTML = `
+          <p style="color: green;">✅ Service Workers désinstallés (${registrations.length})</p>
+          <p style="color: green;">✅ Caches supprimés (${cacheNames.length})</p>
+          <p>Vous pouvez maintenant <a href="/">retourner à l'application</a></p>
+        `;
+      } else {
+        document.getElementById('status').textContent = 'Service Workers non supportés';
+      }
+    }
+    
+    unregisterServiceWorkers();
+  </script>
+</body>
+</html>
+
