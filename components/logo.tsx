@@ -13,7 +13,6 @@ export function Logo({ className = '' }: LogoProps) {
   const tapTimerRef = useRef<NodeJS.Timeout | null>(null);
   const { setIsChatMode } = useChatStore();
   const { user } = useUser();
-  const [showAccessDenied, setShowAccessDenied] = useState(false);
 
   const checkRoomAccess = async (): Promise<boolean> => {
     if (!user?.id) return false;
@@ -25,7 +24,6 @@ export function Logo({ className = '' }: LogoProps) {
       const rooms = await response.json();
       return rooms.length > 0; // User has access if they have at least one room
     } catch (error) {
-      console.error('Error checking room access:', error);
       return false;
     }
   };
@@ -42,25 +40,14 @@ export function Logo({ className = '' }: LogoProps) {
 
     // Check if we hit 3 taps
     if (newCount === 3) {
-      console.log('Triple tap detected! Checking access...');
-      
       // Check if user has access to at least one room
       const hasAccess = await checkRoomAccess();
       
       if (hasAccess) {
-        console.log('Access granted! Entering chat mode...');
         setIsChatMode(true);
-        setTapCount(0);
-      } else {
-        console.log('Access denied! No rooms available.');
-        setShowAccessDenied(true);
-        setTapCount(0);
-        
-        // Hide the message after 3 seconds
-        setTimeout(() => {
-          setShowAccessDenied(false);
-        }, 3000);
       }
+      // If no access, simply do nothing (stay discreet)
+      setTapCount(0);
     } else {
       // Reset tap count after 800ms if no new taps
       tapTimerRef.current = setTimeout(() => {
@@ -70,26 +57,13 @@ export function Logo({ className = '' }: LogoProps) {
   }, [tapCount, setIsChatMode, user]);
 
   return (
-    <div className="relative">
-      {/* Access Denied Message */}
-      {showAccessDenied && (
-        <div className="absolute -top-16 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg whitespace-nowrap z-50 animate-pulse">
-          <div className="flex items-center gap-2">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-            <span className="font-medium">Accès refusé - Aucun salon disponible</span>
-          </div>
-        </div>
-      )}
-
-      <div
-        onClick={handleTap}
-        className={`cursor-pointer select-none ${className}`}
-        role="button"
-        tabIndex={0}
-        aria-label="Logo TaskFlow"
-      >
+    <div
+      onClick={handleTap}
+      className={`cursor-pointer select-none ${className}`}
+      role="button"
+      tabIndex={0}
+      aria-label="Logo TaskFlow"
+    >
       <svg
         width="40"
         height="40"
