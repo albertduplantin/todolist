@@ -48,6 +48,7 @@ export default function AdminPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [syncingUsers, setSyncingUsers] = useState(false);
 
   // Form states
   const [roomName, setRoomName] = useState('');
@@ -165,6 +166,29 @@ export default function AdminPage() {
     }
   };
 
+  const syncAllUsers = async () => {
+    setSyncingUsers(true);
+    try {
+      const response = await fetch('/api/sync-all-users', {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert(`Synchronisation réussie!\n\n${result.created} utilisateurs créés\n${result.updated} utilisateurs mis à jour\n${result.errors} erreurs`);
+        // Reload users list
+        fetchAllUsers();
+      } else {
+        alert('Erreur lors de la synchronisation des utilisateurs');
+      }
+    } catch (error) {
+      console.error('Error syncing users:', error);
+      alert('Erreur lors de la synchronisation des utilisateurs');
+    } finally {
+      setSyncingUsers(false);
+    }
+  };
+
   const inviteSelectedUsers = async () => {
     if (selectedUserIds.length === 0 || !selectedRoom) {
       alert('Veuillez sélectionner au moins un utilisateur');
@@ -259,6 +283,15 @@ export default function AdminPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <Button
+              onClick={syncAllUsers}
+              disabled={syncingUsers}
+              size="sm"
+              variant="outline"
+              className="text-sm"
+            >
+              {syncingUsers ? 'Synchronisation...' : 'Sync Utilisateurs'}
+            </Button>
             <div className="text-sm text-gray-600 hidden sm:block">
               {user?.firstName || user?.username}
             </div>
