@@ -58,8 +58,13 @@ export function ChatInterface() {
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
+  const hasAttemptedFetchRef = useRef(false);
 
   useEffect(() => {
+    // ALWAYS fetch rooms when entering chat interface
+    // This ensures we have fresh data even if store was cleared
+    console.log('[ChatInterface] Mounting - fetching rooms');
+    hasAttemptedFetchRef.current = false; // Reset flag on mount
     fetchRooms();
     initializePusher();
 
@@ -71,6 +76,15 @@ export function ChatInterface() {
       // Note: Room cleanup is handled by panic mode and user change detection
     };
   }, []);
+
+  // Force re-fetch if rooms are empty (store was cleared) - only once
+  useEffect(() => {
+    if (!loading && rooms.length === 0 && user?.id && !hasAttemptedFetchRef.current) {
+      console.log('[ChatInterface] Rooms are empty, re-fetching...');
+      hasAttemptedFetchRef.current = true;
+      fetchRooms();
+    }
+  }, [loading, rooms.length, user?.id]);
 
   // Note: Room access is now checked BEFORE entering chat mode (in Logo component)
   // and cleanup is handled by user change detection (in app/page.tsx)
