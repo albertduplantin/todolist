@@ -173,47 +173,19 @@ export function ChatInterface() {
   };
 
   const subscribeToRoom = (roomId: string) => {
-    if (!pusherRef.current) {
-      console.error('[ChatInterface] Pusher not initialized!');
-      return;
-    }
+    if (!pusherRef.current) return;
 
-    console.log(`[ChatInterface] Subscribing to room-${roomId}`);
     const channel = pusherRef.current.subscribe(`room-${roomId}`);
 
-    // Debug: Listen to all connection events
-    pusherRef.current.connection.bind('state_change', (states: any) => {
-      console.log(`[Pusher] Connection state changed: ${states.previous} -> ${states.current}`);
-    });
-
-    pusherRef.current.connection.bind('error', (err: any) => {
-      console.error('[Pusher] Connection error:', err);
-    });
-
-    channel.bind('pusher:subscription_succeeded', () => {
-      console.log(`[Pusher] Successfully subscribed to room-${roomId}`);
-    });
-
-    channel.bind('pusher:subscription_error', (status: any) => {
-      console.error(`[Pusher] Subscription error for room-${roomId}:`, status);
-    });
-
     channel.bind('new-message', (data: Message) => {
-      console.log('[Pusher] Received new-message event:', data);
-      
       const roomKey = getRoomKey(roomId);
-      if (!roomKey) {
-        console.error('[Pusher] No room key found for decryption');
-        return;
-      }
+      if (!roomKey) return;
 
       try {
         const decryptedContent = decryptMessage(data.encryptedContent, roomKey);
-        console.log('[Pusher] Message decrypted successfully');
         
         // Only add if not from current user (avoid duplicate with local add)
         if (data.senderId !== user?.id) {
-          console.log('[Pusher] Adding message from another user');
           addMessage(roomId, {
             ...data,
             content: decryptedContent,
@@ -224,16 +196,13 @@ export function ChatInterface() {
             'Nouveau message',
             decryptedContent.slice(0, 50) + (decryptedContent.length > 50 ? '...' : '')
           );
-        } else {
-          console.log('[Pusher] Ignoring message from self');
         }
       } catch (error) {
-        console.error('[Pusher] Error decrypting message:', error);
+        console.error('Error decrypting message:', error);
       }
     });
 
     channel.bind('message-deleted', (data: { messageId: string }) => {
-      console.log('[Pusher] Received message-deleted event:', data);
       removeMessage(roomId, data.messageId);
     });
 
@@ -256,9 +225,6 @@ export function ChatInterface() {
 
   const fetchRooms = async () => {
     try {
-      console.log('[ChatInterface] Fetching rooms for current user...');
-      console.log('[ChatInterface] Current rooms in store:', rooms.length);
-      
       // Force fresh data with cache busting
       const timestamp = Date.now();
       const response = await fetch(`/api/rooms?_t=${timestamp}`, {
@@ -269,26 +235,18 @@ export function ChatInterface() {
         },
       });
       
-      console.log('[ChatInterface] API response status:', response.status);
-      
       if (response.ok) {
         const data = await response.json();
-        console.log('[ChatInterface] Received rooms from API:', data.length, 'rooms:', data);
-        
         setRooms(data);
-        console.log('[ChatInterface] Rooms set in store');
 
         // Store encryption keys locally
         data.forEach((room: Room) => {
           storeRoomKey(room.id, room.encryptionKey);
         });
-      } else {
-        console.error('[ChatInterface] Failed to fetch rooms, status:', response.status);
       }
     } catch (error) {
-      console.error('[ChatInterface] Error fetching rooms:', error);
+      console.error('Error fetching rooms:', error);
     } finally {
-      console.log('[ChatInterface] Setting loading to false');
       setLoading(false);
     }
   };

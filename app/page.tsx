@@ -22,18 +22,14 @@ export default function Home() {
   useEffect(() => {
     if (!isLoaded) return;
 
-    console.log('[Security Check] isInitialized:', isInitializedRef.current, 'previousUserId:', previousUserIdRef.current, 'currentUserId:', user?.id);
-
     if (user?.id) {
       // User is logged in
       if (!isInitializedRef.current) {
         // First initialization - just store the user ID
-        console.log('[Security] First initialization for user:', user.id);
         previousUserIdRef.current = user.id;
         isInitializedRef.current = true;
       } else if (previousUserIdRef.current && previousUserIdRef.current !== user.id) {
         // User ID changed - clear everything
-        console.log('[Security] User changed from', previousUserIdRef.current, 'to', user.id, '- clearing all data');
         triggerPanicMode();
         clearEncryptionKeys();
         previousUserIdRef.current = user.id;
@@ -41,7 +37,6 @@ export default function Home() {
     } else {
       // User logged out
       if (isInitializedRef.current && previousUserIdRef.current) {
-        console.log('[Security] User logged out - clearing all data');
         triggerPanicMode();
         clearEncryptionKeys();
         previousUserIdRef.current = null;

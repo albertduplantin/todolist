@@ -45,9 +45,6 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    console.log(`[API Messages GET] Fetching messages for room: ${roomId}`);
-    console.log(`[API Messages GET] User: ${userId}`);
-
     // Get messages - only fetch non-deleted messages
     const roomMessages = await db
       .select()
@@ -61,21 +58,10 @@ export async function GET(req: Request) {
       .orderBy(desc(messages.createdAt))
       .limit(100);
 
-    console.log(`[API Messages GET] Raw query returned ${roomMessages.length} messages`);
-    console.log(`[API Messages GET] First 3 messages:`, roomMessages.slice(0, 3).map(m => ({
-      id: m.id,
-      senderId: m.senderId,
-      deletedAt: m.deletedAt,
-      createdAt: m.createdAt,
-    })));
-
     // Double-check filtering: ensure deletedAt is null or undefined
     const filteredMessages = roomMessages.filter(
       msg => msg.deletedAt === null || msg.deletedAt === undefined
     );
-
-    console.log(`[API Messages GET] After filtering: ${filteredMessages.length} messages`);
-    console.log(`[API Messages GET] Returning messages (reversed)`);
 
     return NextResponse.json(filteredMessages.reverse());
   } catch (error) {
@@ -134,14 +120,8 @@ export async function POST(req: Request) {
       })
       .returning();
 
-    console.log(`[API Messages POST] Message created in DB:`, {
-      id: newMessage[0].id,
-      roomId: newMessage[0].roomId,
-      senderId: newMessage[0].senderId,
-    });
-
     // Trigger Pusher event
-    const pusherPayload = {
+    await pusher.trigger(`room-${roomId}`, 'new-message', {
       id: newMessage[0].id,
       roomId: newMessage[0].roomId,
       senderId: newMessage[0].senderId,
@@ -149,17 +129,7 @@ export async function POST(req: Request) {
       messageType: newMessage[0].messageType,
       imageUrl: newMessage[0].imageUrl,
       createdAt: newMessage[0].createdAt,
-    };
-
-    console.log(`[API Messages POST] Triggering Pusher event on channel: room-${roomId}`);
-    console.log(`[API Messages POST] Pusher payload:`, pusherPayload);
-
-    try {
-      const pusherResponse = await pusher.trigger(`room-${roomId}`, 'new-message', pusherPayload);
-      console.log(`[API Messages POST] Pusher trigger successful:`, pusherResponse);
-    } catch (pusherError) {
-      console.error(`[API Messages POST] Pusher trigger failed:`, pusherError);
-    }
+    });
 
     return NextResponse.json(newMessage[0]);
   } catch (error) {
