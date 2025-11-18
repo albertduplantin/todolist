@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useChatStore } from '@/lib/store';
-import { encryptMessage, decryptMessage, getRoomKey, storeRoomKey } from '@/lib/encryption';
+import { encryptMessage, decryptMessage, getRoomKey, storeRoomKey, clearEncryptionKeys } from '@/lib/encryption';
 import { Send, Image as ImageIcon, ArrowLeft, AlertTriangle, Trash2, MessageSquare } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
