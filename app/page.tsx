@@ -16,24 +16,36 @@ export default function Home() {
   const { isChatMode, triggerPanicMode } = useChatStore();
   const { user, isLoaded } = useUser();
   const previousUserIdRef = useRef<string | null>(null);
+  const isInitializedRef = useRef(false);
 
   // Security: Clear store when user changes (logout/login)
   useEffect(() => {
-    if (isLoaded && user?.id) {
-      // If user ID changed (different user logged in)
-      if (previousUserIdRef.current && previousUserIdRef.current !== user.id) {
-        console.log('[Security] User changed, clearing all data');
-        triggerPanicMode(); // Clear chat store
-        clearEncryptionKeys(); // Clear encryption keys
+    if (!isLoaded) return;
+
+    console.log('[Security Check] isInitialized:', isInitializedRef.current, 'previousUserId:', previousUserIdRef.current, 'currentUserId:', user?.id);
+
+    if (user?.id) {
+      // User is logged in
+      if (!isInitializedRef.current) {
+        // First initialization - just store the user ID
+        console.log('[Security] First initialization for user:', user.id);
+        previousUserIdRef.current = user.id;
+        isInitializedRef.current = true;
+      } else if (previousUserIdRef.current && previousUserIdRef.current !== user.id) {
+        // User ID changed - clear everything
+        console.log('[Security] User changed from', previousUserIdRef.current, 'to', user.id, '- clearing all data');
+        triggerPanicMode();
+        clearEncryptionKeys();
+        previousUserIdRef.current = user.id;
       }
-      previousUserIdRef.current = user.id;
-    } else if (isLoaded && !user) {
+    } else {
       // User logged out
-      if (previousUserIdRef.current) {
-        console.log('[Security] User logged out, clearing all data');
+      if (isInitializedRef.current && previousUserIdRef.current) {
+        console.log('[Security] User logged out - clearing all data');
         triggerPanicMode();
         clearEncryptionKeys();
         previousUserIdRef.current = null;
+        isInitializedRef.current = false;
       }
     }
   }, [user?.id, isLoaded, triggerPanicMode]);
