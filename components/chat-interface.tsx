@@ -173,19 +173,47 @@ export function ChatInterface() {
   };
 
   const subscribeToRoom = (roomId: string) => {
-    if (!pusherRef.current) return;
+    if (!pusherRef.current) {
+      console.error('[ChatInterface] Pusher not initialized!');
+      return;
+    }
 
+    console.log(`[ChatInterface] Subscribing to room-${roomId}`);
     const channel = pusherRef.current.subscribe(`room-${roomId}`);
 
+    // Debug: Listen to all connection events
+    pusherRef.current.connection.bind('state_change', (states: any) => {
+      console.log(`[Pusher] Connection state changed: ${states.previous} -> ${states.current}`);
+    });
+
+    pusherRef.current.connection.bind('error', (err: any) => {
+      console.error('[Pusher] Connection error:', err);
+    });
+
+    channel.bind('pusher:subscription_succeeded', () => {
+      console.log(`[Pusher] Successfully subscribed to room-${roomId}`);
+    });
+
+    channel.bind('pusher:subscription_error', (status: any) => {
+      console.error(`[Pusher] Subscription error for room-${roomId}:`, status);
+    });
+
     channel.bind('new-message', (data: Message) => {
+      console.log('[Pusher] Received new-message event:', data);
+      
       const roomKey = getRoomKey(roomId);
-      if (!roomKey) return;
+      if (!roomKey) {
+        console.error('[Pusher] No room key found for decryption');
+        return;
+      }
 
       try {
         const decryptedContent = decryptMessage(data.encryptedContent, roomKey);
+        console.log('[Pusher] Message decrypted successfully');
         
         // Only add if not from current user (avoid duplicate with local add)
         if (data.senderId !== user?.id) {
+          console.log('[Pusher] Adding message from another user');
           addMessage(roomId, {
             ...data,
             content: decryptedContent,
@@ -196,13 +224,16 @@ export function ChatInterface() {
             'Nouveau message',
             decryptedContent.slice(0, 50) + (decryptedContent.length > 50 ? '...' : '')
           );
+        } else {
+          console.log('[Pusher] Ignoring message from self');
         }
       } catch (error) {
-        console.error('Error decrypting message:', error);
+        console.error('[Pusher] Error decrypting message:', error);
       }
     });
 
     channel.bind('message-deleted', (data: { messageId: string }) => {
+      console.log('[Pusher] Received message-deleted event:', data);
       removeMessage(roomId, data.messageId);
     });
 

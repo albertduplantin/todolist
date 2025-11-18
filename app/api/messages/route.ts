@@ -122,8 +122,14 @@ export async function POST(req: Request) {
       })
       .returning();
 
+    console.log(`[API Messages POST] Message created in DB:`, {
+      id: newMessage[0].id,
+      roomId: newMessage[0].roomId,
+      senderId: newMessage[0].senderId,
+    });
+
     // Trigger Pusher event
-    await pusher.trigger(`room-${roomId}`, 'new-message', {
+    const pusherPayload = {
       id: newMessage[0].id,
       roomId: newMessage[0].roomId,
       senderId: newMessage[0].senderId,
@@ -131,7 +137,17 @@ export async function POST(req: Request) {
       messageType: newMessage[0].messageType,
       imageUrl: newMessage[0].imageUrl,
       createdAt: newMessage[0].createdAt,
-    });
+    };
+
+    console.log(`[API Messages POST] Triggering Pusher event on channel: room-${roomId}`);
+    console.log(`[API Messages POST] Pusher payload:`, pusherPayload);
+
+    try {
+      const pusherResponse = await pusher.trigger(`room-${roomId}`, 'new-message', pusherPayload);
+      console.log(`[API Messages POST] Pusher trigger successful:`, pusherResponse);
+    } catch (pusherError) {
+      console.error(`[API Messages POST] Pusher trigger failed:`, pusherError);
+    }
 
     return NextResponse.json(newMessage[0]);
   } catch (error) {
