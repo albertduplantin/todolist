@@ -2,6 +2,7 @@ import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { rooms, roomMembers, users } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 
 // DEBUG API - Check database state
 export async function GET() {
@@ -16,7 +17,7 @@ export async function GET() {
     const user = await db
       .select()
       .from(users)
-      .where((t) => t.id === userId)
+      .where(eq(users.id, userId))
       .limit(1);
 
     // Get ALL rooms (no filter)
