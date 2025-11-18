@@ -22,7 +22,17 @@ export function Logo({ className = '' }: LogoProps) {
 
     try {
       console.log('[Logo] Checking room access for user:', user.id);
-      const response = await fetch('/api/rooms');
+      
+      // Force fresh data with cache busting
+      const timestamp = Date.now();
+      const response = await fetch(`/api/rooms?_t=${timestamp}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        },
+      });
+      
       console.log('[Logo] API response status:', response.status);
       
       if (!response.ok) {
@@ -31,7 +41,7 @@ export function Logo({ className = '' }: LogoProps) {
       }
       
       const rooms = await response.json();
-      console.log('[Logo] Received rooms from API:', rooms.length, 'rooms:', rooms.map((r: any) => r.name));
+      console.log('[Logo] Received rooms from API:', rooms.length, 'rooms:', rooms);
       
       const hasAccess = rooms.length > 0;
       console.log('[Logo] Access decision:', hasAccess ? 'GRANTED' : 'DENIED');

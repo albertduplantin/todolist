@@ -226,13 +226,26 @@ export function ChatInterface() {
   const fetchRooms = async () => {
     try {
       console.log('[ChatInterface] Fetching rooms for current user...');
+      console.log('[ChatInterface] Current rooms in store:', rooms.length);
       
-      const response = await fetch('/api/rooms');
+      // Force fresh data with cache busting
+      const timestamp = Date.now();
+      const response = await fetch(`/api/rooms?_t=${timestamp}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        },
+      });
+      
+      console.log('[ChatInterface] API response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
-        console.log('[ChatInterface] Received rooms:', data.length, 'rooms:', data.map((r: Room) => r.name));
+        console.log('[ChatInterface] Received rooms from API:', data.length, 'rooms:', data);
         
         setRooms(data);
+        console.log('[ChatInterface] Rooms set in store');
 
         // Store encryption keys locally
         data.forEach((room: Room) => {
@@ -242,8 +255,9 @@ export function ChatInterface() {
         console.error('[ChatInterface] Failed to fetch rooms, status:', response.status);
       }
     } catch (error) {
-      console.error('Error fetching rooms:', error);
+      console.error('[ChatInterface] Error fetching rooms:', error);
     } finally {
+      console.log('[ChatInterface] Setting loading to false');
       setLoading(false);
     }
   };
