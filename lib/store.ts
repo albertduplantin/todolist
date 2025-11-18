@@ -118,19 +118,29 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   clearAllMessages: () => set({ messages: {} }),
 
   triggerPanicMode: () => {
-    // Clear all local state
+    // Clear all local state INCLUDING ROOMS
     set({
       isChatMode: false,
       currentRoomId: null,
-      messages: {},
+      rooms: [], // Clear rooms list
+      messages: {}, // Clear all messages
     });
 
-    // Clear encryption keys
+    // Clear encryption keys from localStorage and sessionStorage
     if (typeof window !== 'undefined') {
-      const keys = Object.keys(localStorage);
-      keys.forEach((key) => {
+      // Clear from localStorage (legacy)
+      const localKeys = Object.keys(localStorage);
+      localKeys.forEach((key) => {
         if (key.startsWith('room_key_')) {
           localStorage.removeItem(key);
+        }
+      });
+      
+      // Clear from sessionStorage (current)
+      const sessionKeys = Object.keys(sessionStorage);
+      sessionKeys.forEach((key) => {
+        if (key.startsWith('room_key_')) {
+          sessionStorage.removeItem(key);
         }
       });
     }

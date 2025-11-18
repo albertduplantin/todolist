@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useChatStore } from '@/lib/store';
 import { Logo } from '@/components/logo';
 import { TodoList } from '@/components/todo-list';
@@ -10,10 +10,33 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { PWAInstallPrompt } from '@/components/pwa-install-prompt';
 import { NotificationPermission } from '@/components/notification-permission';
 import { MobileMenu } from '@/components/mobile-menu';
+import { clearEncryptionKeys } from '@/lib/encryption';
 
 export default function Home() {
-  const { isChatMode } = useChatStore();
+  const { isChatMode, triggerPanicMode } = useChatStore();
   const { user, isLoaded } = useUser();
+  const previousUserIdRef = useRef<string | null>(null);
+
+  // Security: Clear store when user changes (logout/login)
+  useEffect(() => {
+    if (isLoaded && user?.id) {
+      // If user ID changed (different user logged in)
+      if (previousUserIdRef.current && previousUserIdRef.current !== user.id) {
+        console.log('[Security] User changed, clearing all data');
+        triggerPanicMode(); // Clear chat store
+        clearEncryptionKeys(); // Clear encryption keys
+      }
+      previousUserIdRef.current = user.id;
+    } else if (isLoaded && !user) {
+      // User logged out
+      if (previousUserIdRef.current) {
+        console.log('[Security] User logged out, clearing all data');
+        triggerPanicMode();
+        clearEncryptionKeys();
+        previousUserIdRef.current = null;
+      }
+    }
+  }, [user?.id, isLoaded, triggerPanicMode]);
 
   if (!isLoaded) {
     return (

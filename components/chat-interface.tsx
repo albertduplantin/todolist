@@ -70,6 +70,14 @@ export function ChatInterface() {
     };
   }, []);
 
+  // Security: If user has no rooms after loading, force exit chat mode
+  useEffect(() => {
+    if (!loading && rooms.length === 0) {
+      console.log('[Security] No rooms available, exiting chat mode');
+      triggerPanicMode();
+    }
+  }, [loading, rooms.length, triggerPanicMode]);
+
   useEffect(() => {
     if (currentRoomId) {
       fetchMessages(currentRoomId);
