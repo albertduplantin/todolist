@@ -14,6 +14,22 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    console.log(`[API /api/rooms GET] Fetching rooms for user: ${userId}`);
+
+    // First, check ALL room_members entries for this user (debug)
+    const allMemberships = await db
+      .select()
+      .from(roomMembers)
+      .where(eq(roomMembers.userId, userId));
+    
+    console.log(`[API /api/rooms GET] Found ${allMemberships.length} total room_members entries for user ${userId}:`, 
+      allMemberships.map(m => ({
+        roomId: m.roomId,
+        isBanned: m.isBanned,
+        joinedAt: m.joinedAt
+      }))
+    );
+
     // Get rooms where user is a member
     const userRooms = await db
       .select({
@@ -33,6 +49,10 @@ export async function GET() {
           eq(rooms.isActive, true)
         )
       );
+
+    console.log(`[API /api/rooms GET] After SQL filtering: Returning ${userRooms.length} rooms:`, 
+      userRooms.map(r => ({ id: r.id, name: r.name, createdBy: r.isCreator }))
+    );
 
     return NextResponse.json(userRooms);
   } catch (error) {
