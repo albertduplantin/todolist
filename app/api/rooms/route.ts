@@ -2,7 +2,7 @@ import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { rooms, roomMembers, users } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import { generateRoomKey } from '@/lib/encryption';
 
 // GET all rooms for current user
@@ -16,21 +16,28 @@ export async function GET() {
 
     console.log(`[API /api/rooms GET] Fetching rooms for user: ${userId}`);
 
-    // First, check ALL room_members entries for this user (debug)
-    const allMemberships = await db
+    // Step 1: Get all memberships for this user
+    const memberships = await db
       .select()
       .from(roomMembers)
-      .where(eq(roomMembers.userId, userId));
+      .where(
+        and(
+          eq(roomMembers.userId, userId),
+          eq(roomMembers.isBanned, false)
+        )
+      );
     
-    console.log(`[API /api/rooms GET] Found ${allMemberships.length} total room_members entries for user ${userId}:`, 
-      allMemberships.map(m => ({
-        roomId: m.roomId,
-        isBanned: m.isBanned,
-        joinedAt: m.joinedAt
-      }))
-    );
+    console.log(`[API /api/rooms GET] Found ${memberships.length} memberships for user ${userId}`);
 
-    // Get rooms where user is a member
+    if (memberships.length === 0) {
+      console.log(`[API /api/rooms GET] No memberships found, returning empty array`);
+      return NextResponse.json([]);
+    }
+
+    // Step 2: Get the rooms for these memberships
+    const roomIds = memberships.map(m => m.roomId);
+    console.log(`[API /api/rooms GET] Room IDs to fetch:`, roomIds);
+
     const userRooms = await db
       .select({
         id: rooms.id,
@@ -41,17 +48,15 @@ export async function GET() {
         isCreator: rooms.createdById,
       })
       .from(rooms)
-      .innerJoin(roomMembers, eq(rooms.id, roomMembers.roomId))
       .where(
         and(
-          eq(roomMembers.userId, userId),
-          eq(roomMembers.isBanned, false),
+          inArray(rooms.id, roomIds),
           eq(rooms.isActive, true)
         )
       );
 
-    console.log(`[API /api/rooms GET] After SQL filtering: Returning ${userRooms.length} rooms:`, 
-      userRooms.map(r => ({ id: r.id, name: r.name, createdBy: r.isCreator }))
+    console.log(`[API /api/rooms GET] Returning ${userRooms.length} rooms:`, 
+      userRooms.map(r => ({ id: r.id, name: r.name }))
     );
 
     return NextResponse.json(userRooms);
