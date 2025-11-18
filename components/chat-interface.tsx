@@ -64,26 +64,16 @@ export function ChatInterface() {
     initializePusher();
 
     return () => {
-      // Cleanup on unmount
+      // Cleanup on unmount - only disconnect Pusher
       if (pusherRef.current) {
         pusherRef.current.disconnect();
       }
-      
-      // SECURITY: Clear all chat data when leaving ChatInterface
-      console.log('[ChatInterface] Component unmounting, clearing all data');
-      setRooms([]);
-      clearMessages(currentRoomId || '');
-      clearEncryptionKeys();
+      // Note: Room cleanup is handled by panic mode and user change detection
     };
   }, []);
 
-  // Security: If user has no rooms after loading, force exit chat mode
-  useEffect(() => {
-    if (!loading && rooms.length === 0) {
-      console.log('[Security] No rooms available, exiting chat mode');
-      triggerPanicMode();
-    }
-  }, [loading, rooms.length, triggerPanicMode]);
+  // Note: Room access is now checked BEFORE entering chat mode (in Logo component)
+  // and cleanup is handled by user change detection (in app/page.tsx)
 
   useEffect(() => {
     if (currentRoomId) {
@@ -221,40 +211,24 @@ export function ChatInterface() {
 
   const fetchRooms = async () => {
     try {
-      console.log('[ChatInterface] Fetching rooms...');
-      
-      // SECURITY: Clear old rooms FIRST before fetching new ones
-      console.log('[ChatInterface] Clearing old rooms from store...');
-      setRooms([]);
-      clearEncryptionKeys();
+      console.log('[ChatInterface] Fetching rooms for current user...');
       
       const response = await fetch('/api/rooms');
       if (response.ok) {
         const data = await response.json();
         console.log('[ChatInterface] Received rooms:', data.length, 'rooms:', data.map((r: Room) => r.name));
         
-        // Only set rooms if we actually received some
-        if (data.length > 0) {
-          setRooms(data);
+        setRooms(data);
 
-          // Store encryption keys locally
-          data.forEach((room: Room) => {
-            storeRoomKey(room.id, room.encryptionKey);
-          });
-        } else {
-          console.log('[ChatInterface] No rooms available for this user');
-          // Exit chat mode if no rooms
-          triggerPanicMode();
-        }
+        // Store encryption keys locally
+        data.forEach((room: Room) => {
+          storeRoomKey(room.id, room.encryptionKey);
+        });
       } else {
         console.error('[ChatInterface] Failed to fetch rooms, status:', response.status);
-        // Exit chat mode on API error
-        triggerPanicMode();
       }
     } catch (error) {
       console.error('Error fetching rooms:', error);
-      // Exit chat mode on error
-      triggerPanicMode();
     } finally {
       setLoading(false);
     }
