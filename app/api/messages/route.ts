@@ -45,6 +45,9 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    console.log(`[API Messages GET] Fetching messages for room: ${roomId}`);
+    console.log(`[API Messages GET] User: ${userId}`);
+
     // Get messages - only fetch non-deleted messages
     const roomMessages = await db
       .select()
@@ -58,12 +61,21 @@ export async function GET(req: Request) {
       .orderBy(desc(messages.createdAt))
       .limit(100);
 
+    console.log(`[API Messages GET] Raw query returned ${roomMessages.length} messages`);
+    console.log(`[API Messages GET] First 3 messages:`, roomMessages.slice(0, 3).map(m => ({
+      id: m.id,
+      senderId: m.senderId,
+      deletedAt: m.deletedAt,
+      createdAt: m.createdAt,
+    })));
+
     // Double-check filtering: ensure deletedAt is null or undefined
     const filteredMessages = roomMessages.filter(
       msg => msg.deletedAt === null || msg.deletedAt === undefined
     );
 
-    console.log(`[API] Room ${roomId}: Fetched ${roomMessages.length} messages, filtered to ${filteredMessages.length}`);
+    console.log(`[API Messages GET] After filtering: ${filteredMessages.length} messages`);
+    console.log(`[API Messages GET] Returning messages (reversed)`);
 
     return NextResponse.json(filteredMessages.reverse());
   } catch (error) {
