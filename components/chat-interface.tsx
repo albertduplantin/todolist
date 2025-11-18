@@ -64,9 +64,16 @@ export function ChatInterface() {
     initializePusher();
 
     return () => {
+      // Cleanup on unmount
       if (pusherRef.current) {
         pusherRef.current.disconnect();
       }
+      
+      // SECURITY: Clear all chat data when leaving ChatInterface
+      console.log('[ChatInterface] Component unmounting, clearing all data');
+      setRooms([]);
+      clearMessages(currentRoomId || '');
+      clearEncryptionKeys();
     };
   }, []);
 
@@ -214,18 +221,40 @@ export function ChatInterface() {
 
   const fetchRooms = async () => {
     try {
+      console.log('[ChatInterface] Fetching rooms...');
+      
+      // SECURITY: Clear old rooms FIRST before fetching new ones
+      console.log('[ChatInterface] Clearing old rooms from store...');
+      setRooms([]);
+      clearEncryptionKeys();
+      
       const response = await fetch('/api/rooms');
       if (response.ok) {
         const data = await response.json();
-        setRooms(data);
+        console.log('[ChatInterface] Received rooms:', data.length, 'rooms:', data.map((r: Room) => r.name));
+        
+        // Only set rooms if we actually received some
+        if (data.length > 0) {
+          setRooms(data);
 
-        // Store encryption keys locally
-        data.forEach((room: Room) => {
-          storeRoomKey(room.id, room.encryptionKey);
-        });
+          // Store encryption keys locally
+          data.forEach((room: Room) => {
+            storeRoomKey(room.id, room.encryptionKey);
+          });
+        } else {
+          console.log('[ChatInterface] No rooms available for this user');
+          // Exit chat mode if no rooms
+          triggerPanicMode();
+        }
+      } else {
+        console.error('[ChatInterface] Failed to fetch rooms, status:', response.status);
+        // Exit chat mode on API error
+        triggerPanicMode();
       }
     } catch (error) {
       console.error('Error fetching rooms:', error);
+      // Exit chat mode on error
+      triggerPanicMode();
     } finally {
       setLoading(false);
     }
