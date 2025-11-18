@@ -30,6 +30,10 @@ export default function RootLayout({
         <head>
           <link rel="manifest" href="/manifest.json" />
           <meta name="theme-color" content="#3B82F6" />
+          {/* SECURITY: Prevent browser caching for sensitive data */}
+          <meta httpEquiv="Cache-Control" content="no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" />
+          <meta httpEquiv="Pragma" content="no-cache" />
+          <meta httpEquiv="Expires" content="0" />
           {/* Initialize theme before React renders to avoid flash */}
           <script
             dangerouslySetInnerHTML={{
