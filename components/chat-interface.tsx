@@ -206,19 +206,15 @@ export function ChatInterface() {
 
   const fetchRooms = async () => {
     try {
-      console.log('[ChatInterface] Fetching rooms...');
       const response = await fetch('/api/rooms');
       if (response.ok) {
         const data = await response.json();
-        console.log('[ChatInterface] Received rooms:', data.length, 'rooms:', data.map((r: Room) => r.name));
         setRooms(data);
 
         // Store encryption keys locally
         data.forEach((room: Room) => {
           storeRoomKey(room.id, room.encryptionKey);
         });
-      } else {
-        console.error('[ChatInterface] Failed to fetch rooms, status:', response.status);
       }
     } catch (error) {
       console.error('Error fetching rooms:', error);

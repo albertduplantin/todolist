@@ -15,30 +15,15 @@ export function Logo({ className = '' }: LogoProps) {
   const { user } = useUser();
 
   const checkRoomAccess = async (): Promise<boolean> => {
-    if (!user?.id) {
-      console.log('[Logo] No user ID, access denied');
-      return false;
-    }
+    if (!user?.id) return false;
 
     try {
-      console.log('[Logo] Checking room access for user:', user.id);
       const response = await fetch('/api/rooms');
-      console.log('[Logo] API response status:', response.status);
-      
-      if (!response.ok) {
-        console.log('[Logo] API response not OK, access denied');
-        return false;
-      }
+      if (!response.ok) return false;
       
       const rooms = await response.json();
-      console.log('[Logo] Received rooms from API:', rooms.length, 'rooms:', rooms);
-      
-      const hasAccess = rooms.length > 0;
-      console.log('[Logo] Access decision:', hasAccess ? 'GRANTED' : 'DENIED');
-      
-      return hasAccess;
+      return rooms.length > 0;
     } catch (error) {
-      console.error('[Logo] Error checking access:', error);
       return false;
     }
   };
