@@ -40,10 +40,10 @@ next-env.d.ts
 drizzle/
 .drizzle/
 
-# PWA files
+# PWA files (generated)
 **/public/workbox-*
 **/public/worker-*
-**/public/sw.js
+# **/public/sw.js  # REMOVED - we need to track our custom sw.js
 **/public/fallback-*.js
 
 .vercel

@@ -16,6 +16,7 @@ interface Message {
   messageType: 'text' | 'image';
   imageUrl?: string;
   createdAt: Date;
+  isPending?: boolean; // For optimistic UI updates - messages not yet saved to DB
 }
 
 interface ChatStore {

@@ -30,6 +30,9 @@ interface Message {
   messageType: 'text' | 'image';
   imageUrl?: string;
   createdAt: Date;
+  isPending?: boolean; // For optimistic UI updates
+  senderName?: string; // For display purposes
+  content?: string; // Decrypted content
 }
 
 export function ChatInterface() {
@@ -59,6 +62,8 @@ export function ChatInterface() {
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
   const hasAttemptedFetchRef = useRef(false);
+  const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [pendingMessages, setPendingMessages] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     // ALWAYS fetch rooms when entering chat interface
@@ -91,9 +96,26 @@ export function ChatInterface() {
 
   useEffect(() => {
     if (currentRoomId) {
+      console.log(`[Sync] Opening room ${currentRoomId} - force fetching messages from DB`);
       fetchMessages(currentRoomId);
       subscribeToRoom(currentRoomId);
+      
+      // Setup periodic sync - check DB every 30 seconds
+      console.log(`[Sync] Starting periodic sync for room ${currentRoomId}`);
+      syncIntervalRef.current = setInterval(() => {
+        console.log(`[Sync] Periodic sync - checking DB for room ${currentRoomId}`);
+        fetchMessages(currentRoomId);
+      }, 30000); // 30 seconds
     }
+    
+    return () => {
+      // Cleanup periodic sync when leaving room
+      if (syncIntervalRef.current) {
+        console.log(`[Sync] Stopping periodic sync`);
+        clearInterval(syncIntervalRef.current);
+        syncIntervalRef.current = null;
+      }
+    };
   }, [currentRoomId]);
 
   useEffect(() => {
@@ -179,30 +201,46 @@ export function ChatInterface() {
 
     channel.bind('new-message', (data: Message) => {
       const roomKey = getRoomKey(roomId);
-      if (!roomKey) return;
+      if (!roomKey) {
+        console.error('[Pusher] Room key not found for room', roomId);
+        return;
+      }
 
       try {
         const decryptedContent = decryptMessage(data.encryptedContent, roomKey);
+        console.log(`[Pusher] New message received for room ${roomId}:`, data.id);
         
-        // Only add if not from current user (avoid duplicate with local add)
-        if (data.senderId !== user?.id) {
-          addMessage(roomId, {
-            ...data,
-            content: decryptedContent,
-          });
+        // Check if message already exists in store (avoid duplicates)
+        const currentMessages = messages[roomId] || [];
+        const exists = currentMessages.some(msg => msg.id === data.id);
+        
+        if (exists) {
+          console.log(`[Pusher] Message ${data.id} already exists, skipping`);
+          return;
+        }
+        
+        // Add message to local store
+        addMessage(roomId, {
+          ...data,
+          content: decryptedContent,
+        });
+        
+        console.log(`[Pusher] Message ${data.id} added to store`);
 
-          // Send notification
+        // Send notification only if not from current user
+        if (data.senderId !== user?.id) {
           sendNotification(
             'Nouveau message',
             decryptedContent.slice(0, 50) + (decryptedContent.length > 50 ? '...' : '')
           );
         }
       } catch (error) {
-        console.error('Error decrypting message:', error);
+        console.error('[Pusher] Error decrypting message:', error);
       }
     });
 
     channel.bind('message-deleted', (data: { messageId: string }) => {
+      console.log(`[Pusher] Message deleted event received for room ${roomId}:`, data.messageId);
       removeMessage(roomId, data.messageId);
     });
 
@@ -253,13 +291,24 @@ export function ChatInterface() {
 
   const fetchMessages = async (roomId: string) => {
     try {
-      const response = await fetch(`/api/messages?roomId=${roomId}`);
+      console.log(`[Sync] Fetching messages for room ${roomId} from database...`);
+      // Force fresh data with cache busting
+      const timestamp = Date.now();
+      const response = await fetch(`/api/messages?roomId=${roomId}&_t=${timestamp}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        },
+      });
+      
       if (response.ok) {
         const data = await response.json();
+        console.log(`[Sync] Received ${data.length} messages from DB for room ${roomId}`);
         const roomKey = getRoomKey(roomId);
         
         if (!roomKey) {
-          console.error('Room key not found');
+          console.error('[Sync] Room key not found for room', roomId);
           return;
         }
 
@@ -269,15 +318,18 @@ export function ChatInterface() {
             const content = decryptMessage(msg.encryptedContent, roomKey);
             return { ...msg, content };
           } catch (error) {
-            console.error('Error decrypting message:', error);
+            console.error('[Sync] Error decrypting message:', error);
             return { ...msg, content: '[Message illisible]' };
           }
         });
 
+        console.log(`[Sync] Successfully decrypted ${decryptedMessages.length} messages for room ${roomId}`);
         setMessages(roomId, decryptedMessages);
+      } else {
+        console.error(`[Sync] Failed to fetch messages: ${response.status} ${response.statusText}`);
       }
     } catch (error) {
-      console.error('Error fetching messages:', error);
+      console.error('[Sync] Error fetching messages:', error);
     }
   };
 
@@ -310,14 +362,32 @@ export function ChatInterface() {
 
     const roomKey = getRoomKey(currentRoomId);
     if (!roomKey) {
-      console.error('Room key not found');
+      console.error('[Send] Room key not found');
       return;
     }
 
     const messageContent = inputMessage;
+    const tempId = `temp-${Date.now()}-${Math.random()}`;
     setInputMessage(''); // Clear input immediately for better UX
 
+    // Add message optimistically with pending status
+    const optimisticMessage = {
+      id: tempId,
+      roomId: currentRoomId,
+      senderId: user.id,
+      senderName: user.firstName || user.username || 'Me',
+      content: messageContent,
+      messageType: 'text' as const,
+      createdAt: new Date(),
+      isPending: true, // Mark as pending
+    };
+
+    console.log(`[Send] Adding optimistic message ${tempId}...`);
+    addMessage(currentRoomId, optimisticMessage);
+    setPendingMessages(prev => new Set(prev).add(tempId));
+
     try {
+      console.log(`[Send] Sending message to room ${currentRoomId}...`);
       const encrypted = encryptMessage(messageContent, roomKey);
 
       const response = await fetch('/api/messages', {
@@ -332,15 +402,53 @@ export function ChatInterface() {
 
       if (response.ok) {
         const newMessage = await response.json();
-        // Add message locally with decrypted content
-        addMessage(currentRoomId, {
-          ...newMessage,
-          content: messageContent, // Add decrypted content
+        console.log(`[Send] Message saved to DB successfully:`, newMessage.id);
+        
+        // Remove temporary message
+        removeMessage(currentRoomId, tempId);
+        setPendingMessages(prev => {
+          const next = new Set(prev);
+          next.delete(tempId);
+          return next;
         });
+        
+        // Check if message already exists (might have been added via Pusher)
+        const currentMessages = messages[currentRoomId] || [];
+        const exists = currentMessages.some(msg => msg.id === newMessage.id);
+        
+        if (!exists) {
+          console.log(`[Send] Adding message ${newMessage.id} to local store`);
+          // Add message locally with decrypted content
+          addMessage(currentRoomId, {
+            ...newMessage,
+            content: messageContent, // Add decrypted content
+          });
+        } else {
+          console.log(`[Send] Message ${newMessage.id} already in store (via Pusher)`);
+        }
+      } else {
+        console.error(`[Send] Failed to save message: ${response.status}`);
+        // Remove temporary message and restore in input
+        removeMessage(currentRoomId, tempId);
+        setPendingMessages(prev => {
+          const next = new Set(prev);
+          next.delete(tempId);
+          return next;
+        });
+        setInputMessage(messageContent);
+        alert('Erreur lors de l\'envoi du message. Veuillez réessayer.');
       }
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('[Send] Error sending message:', error);
+      // Remove temporary message and restore in input
+      removeMessage(currentRoomId, tempId);
+      setPendingMessages(prev => {
+        const next = new Set(prev);
+        next.delete(tempId);
+        return next;
+      });
       setInputMessage(messageContent); // Restore message on error
+      alert('Erreur réseau. Veuillez vérifier votre connexion.');
     }
   };
 
@@ -348,16 +456,22 @@ export function ChatInterface() {
     if (!currentRoomId) return;
     
     try {
+      console.log(`[Delete] Deleting message ${messageId} from room ${currentRoomId}...`);
       const response = await fetch(`/api/messages?id=${messageId}`, {
         method: 'DELETE',
       });
 
       if (response.ok) {
-        // Remove from local state immediately
+        console.log(`[Delete] Message ${messageId} deleted successfully from DB`);
+        // Remove from local state (Pusher will also trigger this for others)
         removeMessage(currentRoomId, messageId);
+      } else {
+        console.error(`[Delete] Failed to delete message: ${response.status}`);
+        alert('Erreur lors de la suppression du message.');
       }
     } catch (error) {
-      console.error('Error deleting message:', error);
+      console.error('[Delete] Error deleting message:', error);
+      alert('Erreur réseau lors de la suppression.');
     }
   };
 
@@ -386,11 +500,12 @@ export function ChatInterface() {
 
     const roomKey = getRoomKey(currentRoomId);
     if (!roomKey) {
-      console.error('Room key not found');
+      console.error('[Send] Room key not found for image');
       return;
     }
 
     try {
+      console.log(`[Send] Sending image message to room ${currentRoomId}...`);
       // Encrypt a placeholder text (the image URL is stored separately)
       const encrypted = encryptMessage('[Image]', roomKey);
 
@@ -407,14 +522,29 @@ export function ChatInterface() {
 
       if (response.ok) {
         const newMessage = await response.json();
-        // Add message locally with decrypted content
-        addMessage(currentRoomId, {
-          ...newMessage,
-          content: '[Image]',
-        });
+        console.log(`[Send] Image message saved to DB successfully:`, newMessage.id);
+        
+        // Check if message already exists (might have been added via Pusher)
+        const currentMessages = messages[currentRoomId] || [];
+        const exists = currentMessages.some(msg => msg.id === newMessage.id);
+        
+        if (!exists) {
+          console.log(`[Send] Adding image message ${newMessage.id} to local store`);
+          // Add message locally with decrypted content
+          addMessage(currentRoomId, {
+            ...newMessage,
+            content: '[Image]',
+          });
+        } else {
+          console.log(`[Send] Image message ${newMessage.id} already in store (via Pusher)`);
+        }
+      } else {
+        console.error(`[Send] Failed to save image message: ${response.status}`);
+        alert('Erreur lors de l\'envoi de l\'image. Veuillez réessayer.');
       }
     } catch (error) {
-      console.error('Error sending image message:', error);
+      console.error('[Send] Error sending image message:', error);
+      alert('Erreur réseau. Veuillez vérifier votre connexion.');
     }
   };
 
@@ -427,15 +557,27 @@ export function ChatInterface() {
 
     if (confirmed) {
       try {
-        await fetch('/api/messages/clear', {
+        console.log(`[Clear] Clearing all user messages in room ${currentRoomId}...`);
+        const response = await fetch('/api/messages/clear', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ roomId: currentRoomId }),
         });
 
-        clearMessages(currentRoomId);
+        if (response.ok) {
+          console.log(`[Clear] Messages cleared successfully from DB`);
+          // Clear local state
+          clearMessages(currentRoomId);
+          // Re-sync with DB to get remaining messages from other users
+          console.log(`[Clear] Re-syncing messages from DB...`);
+          await fetchMessages(currentRoomId);
+        } else {
+          console.error(`[Clear] Failed to clear messages: ${response.status}`);
+          alert('Erreur lors de la suppression des messages.');
+        }
       } catch (error) {
-        console.error('Error clearing messages:', error);
+        console.error('[Clear] Error clearing messages:', error);
+        alert('Erreur réseau lors de la suppression.');
       }
     }
   };
@@ -686,13 +828,24 @@ export function ChatInterface() {
                     )}
                     <p className="text-sm break-words leading-relaxed">{content}</p>
                     <div className="flex items-center justify-between mt-2 gap-2">
-                      <span className={`text-xs ${isOwn ? 'text-rose-100' : 'text-gray-500'}`}>
-                        {new Date(message.createdAt).toLocaleTimeString('fr-FR', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </span>
-                      {isOwn && (
+                      <div className="flex items-center gap-1">
+                        <span className={`text-xs ${isOwn ? 'text-rose-100' : 'text-gray-500'}`}>
+                          {new Date(message.createdAt).toLocaleTimeString('fr-FR', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                        {message.isPending && (
+                          <span className={`text-xs ${isOwn ? 'text-rose-100' : 'text-gray-500'} flex items-center gap-1`}>
+                            <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Envoi...
+                          </span>
+                        )}
+                      </div>
+                      {isOwn && !message.isPending && (
                         <button
                           onClick={() => deleteMessage(message.id)}
                           className="text-xs text-rose-100 hover:text-white transition-colors"
