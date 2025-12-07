@@ -160,22 +160,45 @@ export async function DELETE(req: Request) {
       );
     }
 
-    // Soft delete - set deletedAt timestamp
-    const deletedMessage = await db
-      .update(messages)
-      .set({ deletedAt: new Date() })
-      .where(and(eq(messages.id, messageId), eq(messages.senderId, userId)))
-      .returning();
+    // Get the message to check room membership
+    const messageToDelete = await db
+      .select()
+      .from(messages)
+      .where(eq(messages.id, messageId))
+      .limit(1);
 
-    if (deletedMessage.length === 0) {
-      console.log(`[API] Failed to delete message ${messageId} - not found or unauthorized`);
+    if (messageToDelete.length === 0) {
       return NextResponse.json(
-        { error: 'Message not found or not authorized' },
+        { error: 'Message not found' },
         { status: 404 }
       );
     }
 
-    console.log(`[API] Message ${messageId} soft-deleted successfully, deletedAt: ${deletedMessage[0].deletedAt}`);
+    // Check if user is a member of the room
+    const membership = await db
+      .select()
+      .from(roomMembers)
+      .where(
+        and(
+          eq(roomMembers.roomId, messageToDelete[0].roomId),
+          eq(roomMembers.userId, userId),
+          eq(roomMembers.isBanned, false)
+        )
+      )
+      .limit(1);
+
+    if (!membership[0]) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Soft delete - set deletedAt timestamp (any room member can delete)
+    const deletedMessage = await db
+      .update(messages)
+      .set({ deletedAt: new Date() })
+      .where(eq(messages.id, messageId))
+      .returning();
+
+    console.log(`[API] Message ${messageId} soft-deleted successfully by user ${userId}, deletedAt: ${deletedMessage[0].deletedAt}`);
 
     // Trigger Pusher event
     await pusher.trigger(

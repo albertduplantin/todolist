@@ -845,7 +845,7 @@ export function ChatInterface() {
                           </span>
                         )}
                       </div>
-                      {isOwn && !message.isPending && (
+                      {!message.isPending && (
                         <button
                           onClick={() => deleteMessage(message.id)}
                           className="text-xs text-rose-100 hover:text-white transition-colors"
