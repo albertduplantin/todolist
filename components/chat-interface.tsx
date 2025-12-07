@@ -848,7 +848,11 @@ export function ChatInterface() {
                       {!message.isPending && (
                         <button
                           onClick={() => deleteMessage(message.id)}
-                          className="text-xs text-rose-100 hover:text-white transition-colors"
+                          className={`text-xs transition-colors ${
+                            isOwn
+                              ? 'text-rose-100 hover:text-white'
+                              : 'text-gray-500 hover:text-gray-900'
+                          }`}
                         >
                           Supprimer
                         </button>
